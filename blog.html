@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="shortcut icon" href="../../assets/ico/favicon.ico">
+
+    <title>IWTL &middot For Free: The Blog</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="../../dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="//netdna.bootstrapcdn.com/bootswatch/3.1.1/readable/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom styles for this template -->
+    <link href="blog.css" rel="stylesheet">
+
+    <!-- Just for debugging purposes. Don't actually copy this line! -->
+    <!--[if lt IE 9]><script src="../../assets/js/ie8-responsive-file-warning.js"></script><![endif]-->
+
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+      <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-35851851-3', 'iwtlforfree.com');
+  ga('send', 'pageview');
+
+  </script>
+  </head>
+
+  <body>
+
+    <div class="blog-masthead">
+      <div class="container">
+        <nav class="blog-nav">
+          <a class="blog-nav-item" href="index.html">Home</a>
+          <a class="blog-nav-item active" href="#">Blog</a>
+        </nav>
+      </div>
+    </div>
+
+    <div class="container">
+
+      <div class="blog-header">
+        <h1 class="blog-title">IWTL: The Blog</h1>
+        <p class="lead blog-description">A blog about how I learned to make a site that aims to help people learn.</p>
+      </div>
+
+      <div class="row">
+
+        <div class="col-sm-8 blog-main">
+
+          <div class="blog-post">
+            <h2 class="blog-post-title">A cool API</h2>
+            <p class="blog-post-meta">March 25, 2014 by Bryan Hoffman</p>
+		<p>Basically this entire project has boiled down to two major things, data scraping, and getting the search functionality running smoothly. I've been using PHP to scrape data i.e. course info off of sites, and then I dump the data into a MySQL database. <a href= "http://ocw.mit.edu/index.htm">MIT OCW</a> was really easy to use as they included an extensive list of keywords in the meta tags for each course webpage. <a href="https://www.coursera.org/">Coursera</a> on the other hand was a different beast. I found their <a href="http://tech.coursera.org/app-platform/catalog/">API</a> and used it to fetch a catalog of their courses complete with a short description of each class. They offer hundred of courses though, and manually figuring out keywords would take <em>forever</em>. So how does one extract keywords from a short description? That's actually an unsolved problem in natural language processing.</p>
+            <blockquote>
+              <p>From <a href="https://en.wikipedia.org/wiki/Natural_language_processing">Wikipedia</a></p>
+              <p>Natural language processing (NLP) is a field of computer science, artificial intelligence, and linguistics concerned with the interactions between computers and human (natural) languages. As such, NLP is related to the area of human–computer interaction. Many challenges in NLP involve natural language understanding, that is, enabling computers to derive meaning from human or natural language input, and others involve natural language generation.</p>
+            </blockquote>
+            <p>So how did I figure out a solution? I didn't!</p>
+            <h2>Enter Yahoo!&trade;</h2>
+            <p>I found out that Yahoo had a super cool <a href="http://developer.yahoo.com/yql/guide/yql-code-examples.html">API</a> for keyword extraction and I utilised that in my PHP web crawler.</p>
+            <pre><code>//set up curl
+curl_setopt($session, CURLOPT_RETURNTRANSFER,true);
+$courses_json = curl_exec($session);
+$courses = json_decode($courses_json);
+$base_url = "https://www.coursera.org/course/";
+
+function getTags($text){
+$yql_base_url = "http://query.yahooapis.com/v1/public/yql";
+$yql_query = "select * from search.termextract where context=\""
+$yql_query.= $text."\"";
+$yql_query_url = $yql_base_url."?q=".urlencode($yql_query);
+$yql_query_url .= "&format=json";
+$session = curl_init($yql_query_url);
+curl_setopt($session, CURLOPT_RETURNTRANSFER,true);
+$json = curl_exec($session);
+
+//decode returned json obejct
+$phpObj =  json_decode($json);
+if(!is_null($phpObj->query->results->Result)){
+  // Safe to parse data
+  return($phpObj->query->results->Result);
+}
+else
+{
+return NULL;
+}
+//end function
+}
+
+foreach($courses->elements as $class){
+$name = $class->{"name"}."\n";
+$source = "Coursera";
+$content_type = 1;
+$url = $base_url.$class->{"shortName"}; //course url
+
+//generate tags from short description
+$pre_tags = getTags($class->{"shortDescription"});
+//sometimes it can't figure out any keywords
+if(!is_null($pre_tags)){
+
+//a few querys give non-unique tags
+$tags = implode(",",array_unique(getTags($class->{"shortDescription"})));
+$tags .=",".$name; //name is used as a keyword
+}
+else
+{
+$tags = $name;
+}
+</code></pre>
+            <p>So if you ever need to do keyword extraction YQL is definitely the right tool.</p>
+          </div><!-- /.blog-post -->
+
+        </div><!-- /.blog-main -->
+
+        <div class="col-sm-3 col-sm-offset-1 blog-sidebar">
+          <div class="sidebar-module sidebar-module-inset">
+            <h4>About</h4>
+            <p>Hi. <br>I'm Bryan and this is the blog detailing the design and coding behind the site IWTL.</p>
+          </div>
+        </div><!-- /.blog-sidebar -->
+
+      </div><!-- /.row -->
+
+    </div><!-- /.container -->
+
+    <div class="blog-footer">
+      <p>Blog by Bryan Hoffman</p>
+      <p>
+        <a href="#">Back to top</a>
+      </p>
+    </div>
+
+
+    <!-- Bootstrap core JavaScript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="https://code.jquery.com/jquery-1.10.2.min.js"></script>
+    <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
+  </body>
+</html>
